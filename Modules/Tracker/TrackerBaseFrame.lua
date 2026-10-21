@@ -332,31 +332,37 @@ function TrackerBaseFrame.OnDragStart(frame, button)
     end
 end
 
-local function _UpdateTrackerPosition()
-    if TrackerBaseFrame.isMoving ~= true and TrackerBaseFrame.isResizing ~= true then
-        Questie:Debug(Questie.DEBUG_DEVELOP, "[TrackerBaseFrame:UpdateTrackerPosition]")
-    else
-        Questie:Debug(Questie.DEBUG_DEVELOP, "[TrackerBaseFrame:UpdateTrackerPosition] - Frame is moving or resizing! --> Exiting.")
+-- StartMoving/StartSizing and older saved positions may leave the frame
+-- attached by its center or the opposite corner. Always size from the selected
+-- growth corner, using frame/UIParent coordinates rather than screen pixels.
+function TrackerBaseFrame:RestoreGrowthAnchor(saveCurrentPosition)
+    if not baseFrame or TrackerBaseFrame.isMoving or TrackerBaseFrame.isSizing then
         return
     end
 
-    local xLeft, yTop, xRight, yBottom = baseFrame:GetLeft(), baseFrame:GetTop(), baseFrame:GetRight(), baseFrame:GetBottom()
-    local trackerSetPoint = Questie.db.profile.trackerSetpoint
-    baseFrame:ClearAllPoints()
-
-    if trackerSetPoint == "BOTTOMLEFT" then
-        baseFrame:SetPoint("BOTTOMLEFT", UIParent, xLeft, yBottom)
-        Questie.db.profile.TrackerLocation = { "BOTTOMLEFT", "UIParent", "BOTTOMLEFT", xLeft, yBottom }
-    elseif trackerSetPoint == "BOTTOMRIGHT" then
-        baseFrame:SetPoint("BOTTOMRIGHT", UIParent, -(GetScreenWidth() - xRight), yBottom)
-        Questie.db.profile.TrackerLocation = { "BOTTOMRIGHT", "UIParent", "BOTTOMRIGHT", -(GetScreenWidth() - xRight), yBottom }
-    elseif trackerSetPoint == "TOPRIGHT" then
-        baseFrame:SetPoint("TOPRIGHT", UIParent, -(GetScreenWidth() - xRight), -(GetScreenHeight() - yTop))
-        Questie.db.profile.TrackerLocation = { "TOPRIGHT", "UIParent", "TOPRIGHT", -(GetScreenWidth() - xRight), -(GetScreenHeight() - yTop) }
-    else
-        baseFrame:SetPoint("TOPLEFT", UIParent, xLeft, -(GetScreenHeight() - yTop))
-        Questie.db.profile.TrackerLocation = { "TOPLEFT", "UIParent", "TOPLEFT", xLeft, -(GetScreenHeight() - yTop) }
+    local point = Questie.db.profile.trackerSetpoint or "TOPLEFT"
+    local location = Questie.db.profile.TrackerLocation
+    if saveCurrentPosition or not location or location[1] ~= point then
+        local left, right = baseFrame:GetLeft(), baseFrame:GetRight()
+        local top, bottom = baseFrame:GetTop(), baseFrame:GetBottom()
+        if not (left and right and top and bottom) then
+            return
+        end
+        local scale = baseFrame:GetEffectiveScale() / UIParent:GetEffectiveScale()
+        local x = (point == "TOPRIGHT" or point == "BOTTOMRIGHT") and right or left
+        local y = (point == "TOPRIGHT" or point == "TOPLEFT") and top or bottom
+        -- Explicit BOTTOMLEFT reference keeps offsets in UIParent's coordinate
+        -- space, including when UI scale differs from the display resolution.
+        location = { point, "UIParent", "BOTTOMLEFT", x * scale, y * scale }
+        Questie.db.profile.TrackerLocation = location
     end
+
+    baseFrame:ClearAllPoints()
+    baseFrame:SetPoint(unpack(location))
+end
+
+local function _UpdateTrackerPosition()
+    TrackerBaseFrame:RestoreGrowthAnchor(true)
 
     C_Timer.After(0.12, function()
         QuestieCombatQueue:Queue(function()

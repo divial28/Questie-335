@@ -1753,6 +1753,7 @@ function QuestieTracker:UpdateFormatting()
 end
 
 function QuestieTracker:UpdateWidth(trackerVarsCombined)
+    TrackerBaseFrame:RestoreGrowthAnchor()
     local trackerWidthByManual = Questie.db.profile.TrackerWidth
     local trackerHeaderFrameWidth = (trackerHeaderFrame:GetWidth() + Questie.db.profile.trackerFontSizeHeader + 10)
     local trackerHeaderlessWidth = (TrackerLinePool.GetFirstLine().label:GetUnboundedStringWidth() + 30)
@@ -1796,6 +1797,7 @@ function QuestieTracker:UpdateWidth(trackerVarsCombined)
 end
 
 function QuestieTracker:UpdateHeight()
+    TrackerBaseFrame:RestoreGrowthAnchor()
     local trackerHeaderFrameHeight = trackerHeaderFrame:GetHeight() + Questie.db.profile.trackerFontSizeZone + 23
     local trackerHeightByRatio = GetScreenHeight() * Questie.db.profile.trackerHeightRatio
     local trackerHeightByManual = Questie.db.profile.TrackerHeight
@@ -1852,6 +1854,10 @@ function QuestieTracker:UpdateHeight()
         trackerQuestFrame:SetHeight(trackerHeaderFrameHeight - 20)
         trackerQuestFrame.ScrollChildFrame:SetHeight(trackerHeaderFrameHeight - 20)
     end
+    -- Resizing a clamped frame may change its displayed position. Reapply
+    -- the saved growth corner after the final size has been selected.
+    TrackerBaseFrame:RestoreGrowthAnchor()
+
 end
 
 function QuestieTracker:Unhook()
